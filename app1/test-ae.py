@@ -1,4 +1,6 @@
 from Assignment_3 import *
+import sys
+sys.setrecursionlimit(10000) 
 
 if __name__ == "__main__":
     # check sys.argv and print friendly error message if not enough arguments
