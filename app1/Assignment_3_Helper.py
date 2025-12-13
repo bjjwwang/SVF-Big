@@ -794,7 +794,7 @@ class AbstractExecution:
         elif fun_name == "mem_insert" or fun_name == "str_insert": #isExternalCallForAssignment
             self.updateStateOnExtCall(node)
         elif pysvf.isExtCall(node.getCalledFunction()):
-            logging.error(f"External call: {str(node)}")
+            #logging.error(f"External call: {str(node)}")
             fun_name = node.getCalledFunction().getName()
             self.external_funs.add(node.getCalledFunction())
             self.detectExtAPIBufOverflow(node)  # type: ignore[attr-defined]
