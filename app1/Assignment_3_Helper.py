@@ -474,7 +474,7 @@ class AbstractExecution:
 
 
     def handleCycleWto(self, cycle: ICFGWTOCycle, context_depth: int):
-        logging.info(f"handleCycleWto: {cycle.head.node.getId()}")
+        #logging.info(f"handleCycleWto: {cycle.head.node.getId()}")
         is_feasible, tmp_es, valid_predecessors = self.mergeStatesFromPredecessors(cycle.head.node)
         if is_feasible is False:
             return
@@ -1052,7 +1052,7 @@ class AbstractExecution:
             self.pre_abs_trace[fun_entry] = self.pre_abs_trace[self.icfg.getGlobalICFGNode()]
             logging.info(f"Entry handle Fun: {fun.getName()}")
             self.handleFun(fun, 0)
-            self.dumpUnvisitedScc(fun.getName())
+            #self.dumpUnvisitedScc(fun.getName())
             # if fun.getName() == "cJSON_InitHooks":
             #     print(f"Entry handle Fun: {fun.getName()}")
             #     self.handleFun(fun, 0)
