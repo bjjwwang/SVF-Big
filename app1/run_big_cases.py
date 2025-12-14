@@ -8,6 +8,7 @@ import time
 import re
 import csv
 import shutil
+import tempfile
 from typing import Optional, Tuple
 
 
@@ -32,6 +33,68 @@ def parse_max_rss_from_time(stderr_text: str) -> Optional[int]:
     return None
 
 
+_TIME_PATH: Optional[str] = None
+_TIME_MODE: Optional[str] = None  # 'bsd_l' | 'gnu_v' | 'gnu_f' | None
+
+
+def _find_true_path() -> Optional[str]:
+    for p in ("/usr/bin/true", "/bin/true"):
+        if Path(p).exists():
+            return p
+    return None
+
+
+def _detect_time_mode() -> Tuple[Optional[str], Optional[str]]:
+    """
+    Detect /usr/bin/time variant and choose flags:
+      - macOS/BSD: '-l'
+      - GNU time: prefer '-v' (labelled), else '-f %M' with '-o <file>'
+    Returns (time_path, mode) or (None, None).
+    """
+    time_path = shutil.which("/usr/bin/time") or shutil.which("time")
+    if not time_path:
+        return None, None
+    true_path = _find_true_path()
+    if not true_path:
+        return None, None
+
+    # Try BSD '-l'
+    try:
+        r = subprocess.run([time_path, "-l", true_path], capture_output=True, text=True)
+        if r.returncode == 0 and re.search(r"maximum resident set size", r.stderr, re.IGNORECASE):
+            return time_path, "bsd_l"
+    except Exception:
+        pass
+
+    # Try GNU '-v'
+    try:
+        r = subprocess.run([time_path, "-v", true_path], capture_output=True, text=True)
+        if r.returncode == 0 and re.search(r"Maximum resident set size .*kbytes", r.stderr, re.IGNORECASE):
+            return time_path, "gnu_v"
+    except Exception:
+        pass
+
+    # Try GNU '-f %M' with '-o'
+    try:
+        with tempfile.NamedTemporaryFile(delete=True) as tf:
+            r = subprocess.run([time_path, "-o", tf.name, "-f", "%M", true_path], capture_output=True, text=True)
+            if r.returncode == 0:
+                content = tf.read().decode("utf-8", errors="ignore").strip()
+                if re.fullmatch(r"\d+", content):
+                    return time_path, "gnu_f"
+    except Exception:
+        pass
+
+    return None, None
+
+
+def _get_time_mode() -> Tuple[Optional[str], Optional[str]]:
+    global _TIME_PATH, _TIME_MODE
+    if _TIME_PATH is None and _TIME_MODE is None:
+        _TIME_PATH, _TIME_MODE = _detect_time_mode()
+    return _TIME_PATH, _TIME_MODE
+
+
 def run_one_with_metrics(cmd: list[str], timeout: Optional[float] = None) -> Tuple[subprocess.CompletedProcess, float, Optional[int], bool]:
     """
     Run a command and collect:
@@ -40,26 +103,54 @@ def run_one_with_metrics(cmd: list[str], timeout: Optional[float] = None) -> Tup
     - timed_out flag (True if we killed due to timeout)
     Returns (completed_process, elapsed_seconds, max_rss_bytes_or_None, timed_out)
     """
-    time_path = shutil.which("/usr/bin/time") or shutil.which("time")
-    use_time = False
+    time_path, mode = _get_time_mode()
     wrapped_cmd = cmd
-    if time_path and Path(time_path).name == "time":
-        # Prefer absolute /usr/bin/time when available; otherwise 'time' may be a shell keyword.
-        if str(time_path) == "/usr/bin/time":
-            use_time = True
-    if use_time:
-        wrapped_cmd = ["/usr/bin/time", "-l"] + cmd
+    tmp_file: Optional[tempfile.NamedTemporaryFile] = None
+    if time_path and mode:
+        if mode == "bsd_l":
+            wrapped_cmd = [time_path, "-l"] + cmd
+        elif mode == "gnu_v":
+            wrapped_cmd = [time_path, "-v"] + cmd
+        elif mode == "gnu_f":
+            tmp_file = tempfile.NamedTemporaryFile(delete=False)
+            tmp_file.close()
+            wrapped_cmd = [time_path, "-o", tmp_file.name, "-f", "%M"] + cmd
     start = time.perf_counter()
     try:
         result = subprocess.run(wrapped_cmd, capture_output=True, text=True, timeout=timeout)
         elapsed = time.perf_counter() - start
-        max_rss = parse_max_rss_from_time(result.stderr) if use_time else None
+        max_rss: Optional[int] = None
+        if time_path and mode:
+            if mode == "bsd_l":
+                max_rss = parse_max_rss_from_time(result.stderr)
+            elif mode == "gnu_v":
+                # Parse 'Maximum resident set size (kbytes): NNN'
+                m = re.search(r"Maximum resident set size\s*\(kbytes\):\s*(\d+)", result.stderr, re.IGNORECASE)
+                if m:
+                    try:
+                        max_rss = int(m.group(1)) * 1024
+                    except Exception:
+                        max_rss = None
+            elif mode == "gnu_f" and tmp_file is not None:
+                try:
+                    with open(tmp_file.name, "r", encoding="utf-8", errors="ignore") as f:
+                        content = f.read().strip()
+                    if re.fullmatch(r"\d+", content):
+                        max_rss = int(content) * 1024
+                except Exception:
+                    max_rss = None
         return result, elapsed, max_rss, False
     except subprocess.TimeoutExpired as e:
         elapsed = time.perf_counter() - start
         # Build a CompletedProcess-like object with a conventional timeout code (124)
         cp = subprocess.CompletedProcess(wrapped_cmd, returncode=124, stdout=e.stdout or "", stderr=e.stderr or "")
         return cp, elapsed, None, True
+    finally:
+        if mode == "gnu_f" and tmp_file is not None:
+            try:
+                Path(tmp_file.name).unlink(missing_ok=True)  # type: ignore[arg-type]
+            except Exception:
+                pass
 
 
 def main() -> int:
