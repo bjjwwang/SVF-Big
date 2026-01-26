@@ -1,0 +1,11 @@
+/Users/z5489735/2023/0424/Software-Security-Analysis-Marker/solution/bcs/zlib/build-bc/CMakeFiles/zlib.dir
+/Users/z5489735/2023/0424/Software-Security-Analysis-Marker/solution/bcs/zlib/build-bc/CMakeFiles/zlibstatic.dir
+/Users/z5489735/2023/0424/Software-Security-Analysis-Marker/solution/bcs/zlib/build-bc/CMakeFiles/Bitcode_Objects.dir
+/Users/z5489735/2023/0424/Software-Security-Analysis-Marker/solution/bcs/zlib/build-bc/CMakeFiles/whole_program_bc.dir
+/Users/z5489735/2023/0424/Software-Security-Analysis-Marker/solution/bcs/zlib/build-bc/CMakeFiles/test.dir
+/Users/z5489735/2023/0424/Software-Security-Analysis-Marker/solution/bcs/zlib/build-bc/CMakeFiles/edit_cache.dir
+/Users/z5489735/2023/0424/Software-Security-Analysis-Marker/solution/bcs/zlib/build-bc/CMakeFiles/rebuild_cache.dir
+/Users/z5489735/2023/0424/Software-Security-Analysis-Marker/solution/bcs/zlib/build-bc/CMakeFiles/list_install_components.dir
+/Users/z5489735/2023/0424/Software-Security-Analysis-Marker/solution/bcs/zlib/build-bc/CMakeFiles/install.dir
+/Users/z5489735/2023/0424/Software-Security-Analysis-Marker/solution/bcs/zlib/build-bc/CMakeFiles/install/local.dir
+/Users/z5489735/2023/0424/Software-Security-Analysis-Marker/solution/bcs/zlib/build-bc/CMakeFiles/install/strip.dir
